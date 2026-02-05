@@ -1,0 +1,2 @@
+class PostDoesNotExist(Exception):
+    pass
