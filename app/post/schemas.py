@@ -1,9 +1,8 @@
-from typing import Text
 from pydantic import BaseModel, Field
 
 
 class PostRequestSchema(BaseModel):
-    author_id: int | None
+    user_id: int | None = None
     limit: int = Field(gt=0, le=100)
     offset: int = Field(ge=0)
     with_likes: bool = False

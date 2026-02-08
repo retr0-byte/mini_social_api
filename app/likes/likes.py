@@ -23,14 +23,22 @@ async def like(
     """
         Like a post (idempotent).
 
+        Args:
+            post_id: post ID.
+            session: Async database session.
+            post: Post data from the database.
+            user: User data from the database.
+
         Behavior:
         - If the like does not exist -> creates it.
         - If the like already exists -> no-op.
 
-        Responses:
-        - 200: like exists after the call (created or already existed)
-        - 401: user is not authenticated or invalid token
-        - 404: post does not exist
+        Returns:
+        - 200: like exists after the call (created or already existed).
+
+        Errors:
+        - 401: user is not authenticated or invalid token or user does not exist.
+        - 404: post does not exist.
 
         Concurrency:
         - Guaranteed by DB unique constraint (post_id, user_id).
@@ -53,14 +61,22 @@ async def unlike(
     """
         Unlike a post (idempotent).
 
+        Args:
+            post_id: post ID.
+            session: Async database session.
+            post: Post data from the database.
+            user: User data from the database.
+
         Behavior:
         - If the like does not exist -> no-op.
         - If the like exists -> delete it.
 
-        Responses:
-        - 200: like does not exist after the call (deleted)
-        - 401: user is not authenticated or invalid token
-        - 404: post does not exist
+        Returns:
+        - 200: like does not exist after the call (deleted).
+
+        Errors:
+        - 401: user is not authenticated or invalid token or user does not exist.
+        - 404: post does not exist.
     """
     await LikesService(session=session).post_unlike(post_id=post.post_id, user_id=user.user_id)
 

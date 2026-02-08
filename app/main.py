@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.core.base_exception import AppError
 from app.auth.auth import auth_router
 from app.post.posts import post_router
 from app.likes.likes import like_router
@@ -28,3 +29,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             }
         },
     )
+
+@app.exception_handler(AppError)
+async def app_error_handler(request: Request, exc: AppError):
+    return JSONResponse(status_code=exc.status_code,
+                        content={
+                            "status": "error",
+                            "error": {
+                                "detail": exc.detail,
+                            }
+                        })

@@ -1,12 +1,16 @@
 from datetime import datetime, timezone
 from typing import Dict, Any
 
-from fastapi import HTTPException
+from fastapi import Depends
+from sqlalchemy.ext.asyncio.session import AsyncSession
 
+from .exceptions import PostDoesNotExist, PostUpdateForbidden
 from .schemas import PostSchema, PostRequestSchema
 from app.services.base import BaseService
-from ..db.models import User
-from ..repositories.post_repo import PostRepository
+from app.auth.auth_service import get_current_user
+from app.db.models import User, Post
+from app.db.session import get_db
+from app.repositories.post_repo import PostRepository
 
 
 class PostService(BaseService):
@@ -17,15 +21,19 @@ class PostService(BaseService):
 
         normalized_posts_data = []
         for post in db_posts:
+            _post = post[0] if isinstance(post, tuple) else post
+
             post_data = {
-                'title': post.title,
-                'content': post.content,
+                'title': _post.title,
+                'content': _post.content,
                 'author': {
-                    'id': post.user_id,
+                    'id': _post.user_id
                 },
             }
             if data.with_likes:
-                post_data['likes_count'] = post.likes_count
+                post_data['likes_count'] = post[1]
+
+            normalized_posts_data.append(post_data)
 
 
         return await self._create_response(
@@ -38,7 +46,7 @@ class PostService(BaseService):
         db_post = await PostRepository().read_post_for_id(session=self.session,
                                                           post_id=post_id)
         if not db_post:
-            raise HTTPException(status_code=404, detail='Post not found')
+            raise PostDoesNotExist()
 
         post_data = db_post["post"]
 
@@ -70,10 +78,10 @@ class PostService(BaseService):
             }
         )
 
-    async def update_post(self, data: PostSchema, post_id: int) -> Dict[str, Any]:
+    async def update_post(self, data: PostSchema, post: Post) -> Dict[str, Any]:
         dict_data = data.model_dump(mode='python')
-        updated_post = await PostRepository().update_post(session=self.session,
-                                                          post_id=post_id,
+        updated_post = await PostRepository().update_post(post=post,
+                                                          session=self.session,
                                                           **dict_data)
 
         return await self._create_response(
@@ -83,9 +91,37 @@ class PostService(BaseService):
             }
         )
 
-    async def delete_post(self, post_id: int):
+    async def delete_post(self, post: Post):
         await PostRepository().update_post(session=self.session,
-                                           post_id=post_id,
+                                           post=post,
                                            deleted_at=datetime.now(timezone.utc))
 
 
+async def get_post_for_update(
+    post_id: int,
+    session: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user),
+) -> Post:
+    post = await PostRepository().read_post_for_id(session=session, post_id=post_id)
+    post = post.get('post')
+
+    if not post:
+        raise PostDoesNotExist()
+
+    if post.user_id != user.user_id:
+        raise PostUpdateForbidden()
+
+    return post
+
+
+async def get_post_or_error(
+    post_id: int,
+    session: AsyncSession = Depends(get_db),
+) -> Post:
+    post = await PostRepository().read_post_for_id(session=session, post_id=post_id)
+    post = post.get('post')
+
+    if not post:
+        raise PostDoesNotExist()
+
+    return post

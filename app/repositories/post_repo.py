@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, Sequence, Any
+from typing import Optional, Sequence, Any, Tuple
 
 from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -62,8 +62,8 @@ class PostRepository:
                         offset: int,
                         with_likes: bool,
                         user_id: Optional[int] = None,
-                        ) -> Sequence[Any]:
-        stmt = select(Post)
+                        ) -> Sequence[Tuple[Any]]:
+        stmt = select(Post).where(Post.deleted_at == None)
 
         if user_id:
             stmt = stmt.where(Post.user_id == user_id)
@@ -87,21 +87,18 @@ class PostRepository:
         return result.scalars().all()
 
     async def update_post(self,
+                          post: Post,
                           session: AsyncSession,
-                          post_id: int,
                           title: str = None,
                           content: str = None,
                           deleted_at: datetime = None,
                           ):
+        update_post = post
 
-        select_stmt = select(Post).where(Post.post_id == post_id)
-        query = await session.execute(select_stmt)
-        update_account = query.scalar()
+        if not update_post:
+            raise PostDoesNotExist()
 
-        if not update_account:
-            raise PostDoesNotExist(f"Account with id {post_id} does not exist!")
-
-        update_stmt = update(table=Post).where(Post.post_id == update_account.post_id)
+        update_stmt = update(table=Post).where(Post.post_id == update_post.post_id)
 
         if title:
             update_stmt = update_stmt.values(title=title)
@@ -114,8 +111,8 @@ class PostRepository:
 
         await session.execute(statement=update_stmt)
         await session.commit()
-        await session.refresh(instance=update_account)
+        await session.refresh(instance=update_post)
 
-        return update_account
+        return update_post
 
 
