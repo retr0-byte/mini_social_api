@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from app.db.models import Post
 from app.db.session import get_db
 from app.likes.likes_service import LikesService
-from app.post.post_service import get_post_or_error
-from app.auth.auth_service import get_current_user
+from app.post.dependencies import get_post_or_error
+from app.auth.dependencies import get_current_user
 
 
 like_router = APIRouter(tags=['likes'])

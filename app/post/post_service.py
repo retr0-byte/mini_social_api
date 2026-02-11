@@ -1,15 +1,10 @@
 from datetime import datetime, timezone
 from typing import Dict, Any
 
-from fastapi import Depends
-from sqlalchemy.ext.asyncio.session import AsyncSession
-
-from .exceptions import PostDoesNotExist, PostUpdateForbidden
-from .schemas import PostSchema, PostRequestSchema
+from app.post.exceptions import PostDoesNotExist
+from app.post.schemas import PostSchema, PostRequestSchema
 from app.services.base import BaseService
-from app.auth.auth_service import get_current_user
 from app.db.models import User, Post
-from app.db.session import get_db
 from app.repositories.post_repo import PostRepository
 
 
@@ -97,31 +92,3 @@ class PostService(BaseService):
                                            deleted_at=datetime.now(timezone.utc))
 
 
-async def get_post_for_update(
-    post_id: int,
-    session: AsyncSession = Depends(get_db),
-    user=Depends(get_current_user),
-) -> Post:
-    post = await PostRepository().read_post_for_id(session=session, post_id=post_id)
-    post = post.get('post')
-
-    if not post:
-        raise PostDoesNotExist()
-
-    if post.user_id != user.user_id:
-        raise PostUpdateForbidden()
-
-    return post
-
-
-async def get_post_or_error(
-    post_id: int,
-    session: AsyncSession = Depends(get_db),
-) -> Post:
-    post = await PostRepository().read_post_for_id(session=session, post_id=post_id)
-    post = post.get('post')
-
-    if not post:
-        raise PostDoesNotExist()
-
-    return post

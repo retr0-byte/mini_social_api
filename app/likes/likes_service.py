@@ -1,5 +1,5 @@
 from app.services.base import BaseService
-from ..repositories.like_repo import LikeRepository
+from app.repositories.like_repo import LikeRepository
 
 
 class LikesService(BaseService):

@@ -1,12 +1,12 @@
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from starlette.responses import JSONResponse
 
-from .auth_service import RegistrationService, AuthoriseService, get_current_user, JwtService, \
-    get_refresh_token_from_cookie
-from .schemas import UserCredentialsSchema
+from app.auth.auth_service import RegistrationService, AuthoriseService, JwtService
+from app.auth.dependencies import get_current_user, get_refresh_token_from_cookie
+from app.auth.schemas import UserCredentialsSchema
 from app.db.session import get_db
-from ..db.models import User
+from app.db.models import User
 
 auth_router = APIRouter(prefix="/auth", tags=['auth'])
 

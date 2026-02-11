@@ -2,10 +2,11 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
-from app.auth.auth_service import get_current_user
+from app.auth.dependencies import get_current_user
 from app.db.models import Post
 from app.db.session import get_db
-from app.post.post_service import PostService, get_post_for_update
+from app.post.post_service import PostService
+from app.post.dependencies import get_post_for_update
 from app.post.schemas import PostRequestSchema, PostSchema
 
 post_router = APIRouter(tags=['posts'])
