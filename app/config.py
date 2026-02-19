@@ -27,3 +27,11 @@ class Settings(BaseSettings):
             f"{self.DB_PORT}/"
             f"{self.DB_NAME}"
         )
+
+    @property
+    def jwt_access_key(self):
+        return self.JWT_ACCESS_SECRET_KEY.get_secret_value()
+
+    @property
+    def jwt_refresh_key(self):
+        return self.JWT_REFRESH_SECRET_KEY.get_secret_value()

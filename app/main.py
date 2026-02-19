@@ -3,10 +3,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.core.base_exception import AppError
-from app.auth.auth import auth_router
-from app.post.posts import post_router
-from app.likes.likes import like_router
-
+from app.auth.router import auth_router
+from app.post.router import post_router
+from app.likes.router import like_router
 
 app = FastAPI(
     docs_url="/api/docs", openapi_url="/api"
@@ -29,6 +28,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             }
         },
     )
+
 
 @app.exception_handler(AppError)
 async def app_error_handler(request: Request, exc: AppError):

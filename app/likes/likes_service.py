@@ -1,19 +1,24 @@
-from app.services.base import BaseService
+from sqlalchemy.ext.asyncio.session import AsyncSession
+
+from app.core.base_service import BaseService
+from app.db.models import Post, User
 from app.repositories.like_repo import LikeRepository
 
 
 class LikesService(BaseService):
-    async def post_like(self, post_id: int, user_id: int):
-        await LikeRepository().post_like(
-            session=self.session,
-            post_id=post_id,
-            user_id=user_id
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__(session=session)
+        self.like_repo = LikeRepository(session=self.session)
+
+    async def post_like(self, post: Post, user: User):
+        await self.like_repo.post_like(
+            post_id=post.id,
+            user_id=user.id
         )
 
-    async def post_unlike(self, post_id: int, user_id: int):
-        await LikeRepository().post_unlike(
-            session=self.session,
-            post_id=post_id,
-            user_id=user_id
+    async def post_unlike(self, post: Post, user: User):
+        await self.like_repo.post_unlike(
+            post_id=post.id,
+            user_id=user.id
         )
 

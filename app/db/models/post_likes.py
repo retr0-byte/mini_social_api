@@ -10,10 +10,10 @@ from app.db.session import Base
 class PostLikes(Base):
     __tablename__ = 'post_likes'
 
-    like_id: Mapped[int] = mapped_column(primary_key=True)
-    post_id: Mapped[int] = mapped_column(ForeignKey('post.post_id'),
+    id: Mapped[int] = mapped_column(primary_key=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey('post.id'),
                                                 index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("user_account.user_id"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("user_account.id"))
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),
                                                  default=lambda: datetime.now(timezone.utc))
@@ -23,4 +23,4 @@ class PostLikes(Base):
     )
 
     def __repr__(self) -> str:
-        return f'PostLike(like_id={self.like_id!r}, created_at={self.created_at!r})'
+        return f'PostLike(id={self.id!r}, created_at={self.created_at!r})'

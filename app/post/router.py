@@ -1,25 +1,30 @@
+from typing import List, Optional
+
 from fastapi import APIRouter, Depends
-from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.db.models import Post
 from app.db.session import get_db
 from app.post.post_service import PostService
-from app.post.dependencies import get_post_for_update
-from app.post.schemas import PostRequestSchema, PostSchema
+from app.post.dependencies import get_post_for_update, get_post_or_error
+from app.post.schemas import PostRequestSchema, PostSchema, PostDTO, PostIdDTO
+from app.schemas import ApiResponse
+
 
 post_router = APIRouter(tags=['posts'])
 
 
-@post_router.get("/posts")
-async def posts(params: PostRequestSchema = Depends(),
-                session: AsyncSession = Depends(get_db)):
+@post_router.get(path="/posts", response_model=ApiResponse[List[Optional[PostDTO]]], status_code=200)
+async def get_posts(
+        params: PostRequestSchema = Depends(),
+        session: AsyncSession = Depends(get_db)
+) -> ApiResponse[List[Optional[PostDTO]]]:
     """
         View all posts or a specific user.
 
         Args:
-        - params: Pagination params(limit, offset), user id, with likes.
+        - params: Pagination params(limit, offset), user id.
         - session: Async database session.
 
         Returns:
@@ -28,17 +33,17 @@ async def posts(params: PostRequestSchema = Depends(),
         Errors:
         - 400: Validation error (e.g., not pagination params).
     """
-    posts = await PostService(session=session).get_posts(data=params)
+    posts_list: List[PostDTO] = await PostService(session=session).get_posts(data=params)
 
-    return JSONResponse(
-        status_code=200,
-        content=posts
-    )
+    return ApiResponse(data=posts_list)
 
 
-@post_router.get("/post/{post_id}")
-async def read_post(post_id: int,
-                    session: AsyncSession = Depends(get_db)):
+@post_router.get(path="/post/{post_id}", response_model=ApiResponse[PostDTO], status_code=200)
+async def read_post(
+        post_id: int,
+        post: Post = Depends(get_post_or_error),
+        session: AsyncSession = Depends(get_db)
+) -> ApiResponse[PostDTO]:
     """
         View a specific post.
 
@@ -52,18 +57,17 @@ async def read_post(post_id: int,
         Errors:
         - 404: Post does not exist.
     """
-    post = await PostService(session=session).get_post(post_id)
+    post: PostDTO = await PostService(session=session).get_post(post)
 
-    return JSONResponse(
-        status_code=200,
-        content=post
-    )
+    return ApiResponse(data=post)
 
 
-@post_router.post("/post")
-async def write_post(data: PostSchema,
-                     session: AsyncSession = Depends(get_db),
-                     user=Depends(get_current_user)):
+@post_router.post(path="/post", response_model=ApiResponse[PostIdDTO], status_code=201)
+async def write_post(
+        data: PostSchema,
+        session: AsyncSession = Depends(get_db),
+        user=Depends(get_current_user)
+) -> ApiResponse[PostIdDTO]:
     """
         Write post.
 
@@ -79,20 +83,19 @@ async def write_post(data: PostSchema,
         - 400: Validation error (e.g., not title or content incorrect number of characters).
         - 401: User does not exist or missing ... token.
     """
-    new_post = await PostService(session=session).create_post(data=data, user=user)
+    new_post_id: PostIdDTO = await PostService(session=session).create_post(data=data, user=user)
 
-    return JSONResponse(
-        status_code=201,
-        content=new_post
-    )
+    return ApiResponse(data=new_post_id)
 
 
-@post_router.patch("/post/{post_id}")
-async def update_post(data: PostSchema,
-                      post_id: int,
-                      session: AsyncSession = Depends(get_db),
-                      post: Post = Depends(get_post_for_update),
-                      user=Depends(get_current_user)):
+@post_router.patch(path="/post/{post_id}", response_model=ApiResponse[PostSchema], status_code=200)
+async def update_post(
+        data: PostSchema,
+        post_id: int,
+        session: AsyncSession = Depends(get_db),
+        post: Post = Depends(get_post_for_update),
+        user=Depends(get_current_user)
+) -> ApiResponse[PostSchema]:
     """
         Update post.
 
@@ -112,19 +115,18 @@ async def update_post(data: PostSchema,
         - 403: You are not allowed to update a post.
         - 404: Post does not exist.
     """
-    updated_post = await PostService(session=session).update_post(data=data, post=post)
+    updated_post: PostSchema = await PostService(session=session).update_post(data=data, post=post)
 
-    return JSONResponse(
-        status_code=200,
-        content=updated_post
-    )
+    return ApiResponse(data=updated_post)
 
 
-@post_router.delete("/post/{post_id}")
-async def delete_post(post_id: int,
-                      post: Post = Depends(get_post_for_update),
-                      user=Depends(get_current_user),
-                      session: AsyncSession = Depends(get_db)):
+@post_router.delete(path="/post/{post_id}", status_code=204)
+async def delete_post(
+        post_id: int,
+        post: Post = Depends(get_post_for_update),
+        user=Depends(get_current_user),
+        session: AsyncSession = Depends(get_db)
+) -> None:
     """
         Delete post.
 
@@ -135,7 +137,7 @@ async def delete_post(post_id: int,
         - user: User data from the database.
 
         Returns:
-        - 204: Nothing is returned.
+        - 204: OK.
 
         Errors:
         - 401: User does not exist or missing ... token.
@@ -144,7 +146,3 @@ async def delete_post(post_id: int,
     """
     await PostService(session=session).delete_post(post=post)
 
-    return JSONResponse(
-        status_code=204,
-        content=None
-    )

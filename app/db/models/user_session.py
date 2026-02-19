@@ -11,8 +11,8 @@ from app.db.session import Base
 class UserSession(Base):
     __tablename__ = 'user_sessions'
 
-    session_id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey('user_account.user_id'))
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('user_account.id'))
     token_hash: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
 
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
@@ -21,4 +21,4 @@ class UserSession(Base):
                                                  default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
-        return f'UserSession(session_id={self.session_id!r}, created_at={self.created_at!r})'
+        return f'UserSession(id={self.id!r}, created_at={self.created_at!r})'

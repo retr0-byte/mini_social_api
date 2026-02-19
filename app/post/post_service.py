@@ -1,94 +1,77 @@
 from datetime import datetime, timezone
-from typing import Dict, Any
+from typing import Optional, List
+
+from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.post.exceptions import PostDoesNotExist
-from app.post.schemas import PostSchema, PostRequestSchema
-from app.services.base import BaseService
+from app.post.schemas import PostSchema, PostRequestSchema, PostDTO, AuthorDTO, PostIdDTO
+from app.repositories import AuthenticationRepository
+from app.repositories.like_repo import LikeRepository
+from app.core.base_service import BaseService
 from app.db.models import User, Post
 from app.repositories.post_repo import PostRepository
 
 
 class PostService(BaseService):
-    async def get_posts(self, data: PostRequestSchema) -> Dict[str, Any]:
-        dict_data = data.model_dump(mode='python')
-        db_posts = await PostRepository().get_posts(session=self.session,
-                                                    **dict_data)
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__(session=session)
+        self.post_repo = PostRepository(session=self.session)
+        self.like_repo = LikeRepository(session=self.session)
+        self.user_repo = AuthenticationRepository(session=self.session)
 
-        normalized_posts_data = []
-        for post in db_posts:
-            _post = post[0] if isinstance(post, tuple) else post
-
-            post_data = {
-                'title': _post.title,
-                'content': _post.content,
-                'author': {
-                    'id': _post.user_id
-                },
-            }
-            if data.with_likes:
-                post_data['likes_count'] = post[1]
-
-            normalized_posts_data.append(post_data)
-
-
-        return await self._create_response(
-            data= {
-                'posts': normalized_posts_data
-            }
+    async def get_posts(self, data: PostRequestSchema) -> List[PostDTO]:
+        posts: List[PostDTO] = await self.post_repo.get_posts(
+            limit=data.limit,
+            offset=data.offset,
+            user_id=data.user_id
         )
 
-    async def get_post(self, post_id: int) -> Dict[str, Any]:
-        db_post = await PostRepository().read_post_for_id(session=self.session,
-                                                          post_id=post_id)
-        if not db_post:
+        return posts
+
+    async def get_post(self, post: Post) -> PostDTO:
+        user: Optional[User] = await self.user_repo.get_by_id(item_id=post.user_id)
+
+        if not user:
             raise PostDoesNotExist()
 
-        post_data = db_post["post"]
+        likes_count: int = await self.like_repo.get_likes_count(post_id=post.id)
 
-        normalized_post_data = {
-            'title': post_data.title,
-            'content': post_data.content,
-            'author': {
-                'id': post_data.user_id,
-                'email': db_post["user_email"],
-            },
-            'likes_count': db_post["likes_count"],
-        }
-
-        return await self._create_response(
-                data={
-                    'post': normalized_post_data
-                }
-            )
-
-    async def create_post(self, data: PostSchema, user: User) -> Dict[str, Any]:
-        dict_data = data.model_dump(mode='python')
-        new_post = await PostRepository().create_post(session=self.session,
-                                                      **dict_data,
-                                                      user_id=user.user_id)
-
-        return await self._create_response(
-            data={
-                'id': new_post.post_id
-            }
+        author: AuthorDTO = AuthorDTO(
+            id=post.user_id,
+            email=user.email
         )
 
-    async def update_post(self, data: PostSchema, post: Post) -> Dict[str, Any]:
-        dict_data = data.model_dump(mode='python')
-        updated_post = await PostRepository().update_post(post=post,
-                                                          session=self.session,
-                                                          **dict_data)
+        return PostDTO(
+            title=post.title,
+            content=post.content,
+            author=author,
+            likes_count=likes_count,
+        )
 
-        return await self._create_response(
-            data={
-                'id': updated_post.post_id,
-                'new_column': dict_data
-            }
+    async def create_post(self, data: PostSchema, user: User) -> PostIdDTO:
+        new_post: Post = await self.post_repo.create_post(
+            title=data.title,
+            content=data.content,
+            user_id=user.id)
+
+        return PostIdDTO(id=new_post.id)
+
+    async def update_post(self, data: PostSchema, post: Post) -> PostSchema:
+        updated_post: Post = await self.post_repo.update_post(
+            post=post,
+            title=data.title,
+            content=data.content
+        )
+
+        return PostSchema(
+            title=updated_post.title,
+            content=updated_post.content
         )
 
     async def delete_post(self, post: Post):
-        await PostRepository().update_post(session=self.session,
-                                           post=post,
-                                           deleted_at=datetime.now(timezone.utc))
+        await self.post_repo.update_post(
+            post=post,
+            deleted_at=datetime.now(timezone.utc)
+        )
 
 
